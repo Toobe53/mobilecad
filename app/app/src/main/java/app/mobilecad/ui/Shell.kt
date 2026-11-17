@@ -803,7 +803,7 @@ private fun TreeRow(app: AppState, o: FcObject, depth: Int, menuOpen: Boolean, h
     Box {
         Row(Modifier.fillMaxWidth().height(40.dp).background(if (selected) OS.Cloud else OS.Surface)
             .combinedClickable(onClick = { if (o.type == "TechDraw::DrawPage") { app.page = o.name; app.refreshPage() }
-                else if (o.type == "Spreadsheet::Sheet" && app.inSheet) { app.sheet = o.name; app.refreshSheet() } else { app.select(SelRef(o.name), additive = false); app.refresh() } }, onDoubleClick = { if (o.type == "PartDesign::Body") toggleActiveBody(app, o) else app.openEditor(o.name) }, onLongClick = { setMenu(true) })
+                else if (o.type == "Spreadsheet::Sheet" && app.inSheet) { app.sheet = o.name; app.refreshSheet() } else { app.select(SelRef(o.name), additive = false); app.refreshSelection() } }, onDoubleClick = { if (o.type == "PartDesign::Body") toggleActiveBody(app, o) else app.openEditor(o.name) }, onLongClick = { setMenu(true) })
             .padding(start = (4 + depth * 18).dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             // FreeCAD's expand arrow
             Box(Modifier.size(24.dp).then(if (hasKids) Modifier.clickable {
@@ -873,7 +873,7 @@ private fun ContextMenu(app: AppState, view: ViewportView?, dismiss: () -> Unit)
             HorizontalDivider()
             item(I18n.t("Hide / show"), "Std_ToggleVisibility")
             DropdownMenuItem({ Text(I18n.tf("Delete %d", app.selection.map { it.obj }.distinct().size), color = OS.Red) }, { dismiss(); app.run("Std_Delete") })
-            DropdownMenuItem({ Text(I18n.t("Clear selection")) }, { dismiss(); app.clearSelection(); app.refresh() })
+            DropdownMenuItem({ Text(I18n.t("Clear selection")) }, { dismiss(); app.clearSelection(); app.refreshSelection() })
         }
         HorizontalDivider()
         DropdownMenuItem({ Text(I18n.t("Zoom to fit")) }, { dismiss(); view?.fitAll() })

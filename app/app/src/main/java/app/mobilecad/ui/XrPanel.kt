@@ -60,7 +60,7 @@ fun XrContextPanel(app: AppState, modifier: Modifier = Modifier) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f), color = OS.Navy, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 objs.singleOrNull()?.takeIf { sk == null }?.let { o -> PanelButton("Edit") { app.openEditor(o.name) } }
-                if (sel.isNotEmpty() && sk == null) PanelButton("Clear") { app.clearSelection(); app.refresh() }
+                if (sel.isNotEmpty() && sk == null) PanelButton("Clear") { app.clearSelection(); app.refreshSelection() }
             }
             Text(hint, color = OS.Steel, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val cmds = actions.distinct().filter { MobileCommands.available(it) }.mapNotNull { app.catalog.cmd(it) }
