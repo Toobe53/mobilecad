@@ -15,7 +15,7 @@ android {
     namespace = "app.mobilecad"
     compileSdk = 34
     defaultConfig {
-        applicationId = "app.mobilecad"
+        applicationId = "app.mobilecad.i18n"
         minSdk = 26
         targetSdk = 34
         versionName = appVersion
@@ -31,6 +31,15 @@ android {
             isMinifyEnabled = true; isShrinkResources = true     // R8; Qt reaches its Java classes by name: proguard-rules.pro
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
+        // Test channel: debuggable build with its own application id, so it can live next to the release app.
+        create("qa") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".test"
+            versionNameSuffix = "-test"
+            isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("debug")
         }
     }
     ndkVersion = "29.0.14206865"

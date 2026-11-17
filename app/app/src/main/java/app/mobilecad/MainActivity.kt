@@ -18,6 +18,18 @@ class MainActivity : ComponentActivity() {
             app.updater.testFeed = u; app.updater.check(manual = true) }; return }
         // --es fcopen /path/file.FCStd: open a document as File ▸ Open would (screenshots, tests)
         i?.getStringExtra("fcopen")?.let { p -> if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) app.whenReady { app.open(p) }; return }
+        // --es runchecks device_check.py: run a check shipped in assets/device-checks (test/qa builds only)
+        i?.getStringExtra("runchecks")?.let { name ->
+            if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+            val src = try {
+                assets.open("device-checks/$name").bufferedReader().use { it.readText() }
+            } catch (e: Exception) {
+                "result = 'missing device check: $name'"
+            }
+            app.whenReady { app.eng({ run("import traceback\ntry:\n" + src.lines().joinToString("\n") { "    $it" } + "\nexcept Exception:\n    result = traceback.format_exc()") }) { r ->
+                android.util.Log.i("fcscript", r?.toString() ?: "None"); app.refresh() } }
+            return
+        }
         val src = i?.getStringExtra("fcscript") ?: i?.getStringExtra("fcscript64")?.let { String(android.util.Base64.decode(it, 0)) } ?: return
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE == 0) return
         app.whenReady { app.eng({ run("import traceback\ntry:\n" + src.lines().joinToString("\n") { "    $it" } + "\nexcept Exception:\n    result = traceback.format_exc()") }) { r ->
