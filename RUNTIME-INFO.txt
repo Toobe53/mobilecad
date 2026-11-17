@@ -1,0 +1,10 @@
+Android arm64 runtime for MobileCAD 0.5.18 (fork test channel)
+FreeCAD: main e95a31c (as bundled by the upstream APK)
+Python: 3.14.4
+Contents:
+  app/app/src/arm64/assets/freecad-runtime/   FreeCAD + Qt + OCCT + VTK + Mod + bridge
+  app/app/src/arm64/assets/python/            CPython + numpy + site-packages
+  app/app/src/arm64/jniLibs/arm64-v8a/        libfcbridge, libpython, libgmsh, libccx, ...
+  app/app/libs/Qt6Android.jar                 Qt Java classes (stubs used by the bridge)
+Created: 2026-11-17T06:02:57Z
+License: see the upstream repository (GPL-3.0) and each bundled component.

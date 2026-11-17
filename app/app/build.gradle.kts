@@ -3,6 +3,10 @@ import java.util.Properties
 // 1000000 + major*100000 + minor*1000 + patch*10, plus the ABI digit per APK (arm64 1, x86_64 2). The codes stay above
 // the time-based ones of 0.4, and a tag builds to the same versionCode on GitHub and on F-Droid.
 val appVersion = "0.5.18"
+// CI and contributors can use the prebuilt native bridge (libfcbridge.so from the runtime
+// artifact) instead of compiling src/main/cpp; the upstream default stays a normal NDK build.
+val usePrebuiltBridge = project.hasProperty("usePrebuiltBridge") ||
+    System.getenv("MOBILECAD_PREBUILT_BRIDGE") == "1"
 val baseVersionCode = 1005180
 plugins {
     id("com.android.application")
@@ -21,6 +25,13 @@ android {
         versionName = appVersion
     }
     signingConfigs {
+        // CI may provide a persistent test key (GitHub secrets) so test builds keep one signature.
+        if (project.hasProperty("qaStoreFile")) create("qaSign") {
+            storeFile = file(project.property("qaStoreFile") as String)
+            storePassword = project.property("qaStorePassword") as String
+            keyAlias = project.property("qaKeyAlias") as String
+            keyPassword = project.property("qaKeyPassword") as String
+        }
         if (keyProps.containsKey("storeFile")) create("release") {
             storeFile = file(keyProps.getProperty("storeFile")); storePassword = keyProps.getProperty("storePassword")
             keyAlias = keyProps.getProperty("keyAlias"); keyPassword = keyProps.getProperty("keyPassword")
@@ -38,13 +49,15 @@ android {
             applicationIdSuffix = ".test"
             versionNameSuffix = "-test"
             isDebuggable = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("qaSign") ?: signingConfigs.getByName("debug")
             matchingFallbacks += listOf("debug")
         }
     }
-    ndkVersion = "29.0.14206865"
-    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
-    defaultConfig { externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_shared") } } }
+    if (!usePrebuiltBridge) {
+        ndkVersion = "29.0.14206865"
+        externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+        defaultConfig { externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_shared") } } }
+    }
     // The FreeCAD/CPython runtime is ABI-specific: one flavor (and APK) per ABI, staged by engine/package_runtime.py
     flavorDimensions += "abi"
     productFlavors {

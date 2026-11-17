@@ -38,8 +38,26 @@ SKIP_BUILD=1 SKIP_INSTALL=1 tools/run-device-checks.sh   # 只重跑检查
 - 测试版可能包含未合并到上游的改动，不保证 F-Droid 可复现；
 - 回滚：`adb uninstall app.mobilecad.i18n.test`，正式版不受影响。
 
-## 本地构建说明
+## 可复现构建（CI）
 
-仓库不包含 FreeCAD/CPython 运行时（`.gitignore` 里排除了 ~500 MB 的 `src/arm64` 资产）。
-构建前需要按 `engine/` 的脚本产出运行时并 `engine/package_runtime.py` 暂存，另外本地签名配置不进仓库。
-这就是为什么测试渠道的 APK 由维护者本机构建后上传，而不是 CI 自动构建。
+运行时不再只存在于维护者机器上：
+
+- `runtime-0.5.18` Release 里托管了 arm64 运行时包（`runtime-arm64-e95a31c.tar.zst`，约 140 MB，
+  解压后 ~520 MB，含 FreeCAD/Qt/OCCT/VTK、CPython、jniLibs、Qt6Android.jar）；
+- `tools/fetch-runtime.sh` 负责下载 + 校验 + 解压到 `app/app/src/arm64/` 和 `app/app/libs/`；
+- `app/app/build.gradle.kts` 支持 `-PusePrebuiltBridge`：跳过 NDK/CMake，直接用运行时里的 `libfcbridge.so`
+  （不传这个参数时仍是上游的 NDK 构建，不影响正式发布）；
+- `.github/workflows/test-build.yml`：打 `test-*` tag 或手动触发时，在 Ubuntu runner 上
+  fetch 运行时 → 构建 `assembleArm64Qa` → 校验 APK 内含 `libFreeCADApp.so` 与 `device-checks/` → 上传 artifact
+  → 自动发 pre-release。
+
+本地复现：
+
+```bash
+tools/fetch-runtime.sh
+cd app && ./gradlew :app:assembleArm64Qa -PusePrebuiltBridge
+```
+
+签名：CI 默认用 debug key；如果想让 CI 产物和本地测试包同签名，在仓库 Secrets 里配置
+`TEST_KEYSTORE_B64`（keystore 的 base64）、`TEST_KEYSTORE_PASS`、`TEST_KEY_ALIAS`、`TEST_KEY_PASS`，
+workflow 会通过 `-PqaStoreFile…` 使用它。不配置时，换包前需先卸载旧测试版。

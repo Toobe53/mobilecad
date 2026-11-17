@@ -1,0 +1,81 @@
+name: test-build
+
+on:
+  push:
+    tags: ["test-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK packages
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SM" ] || SM="$(command -v sdkmanager)"
+          yes | "$SM" --licenses >/dev/null 2>&1 || true
+          "$SM" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+
+      - name: Runtime cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mobilecad-runtime
+          key: mobilecad-runtime-0.5.18-e95a31c
+
+      - name: Fetch prebuilt runtime
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq zstd curl
+          bash tools/fetch-runtime.sh
+          test -f app/app/src/arm64/assets/freecad-runtime/lib/libFreeCADApp.so
+
+      - name: Build qa APK (prebuilt bridge, no NDK)
+        env:
+          TEST_KEYSTORE_B64: ${{ secrets.TEST_KEYSTORE_B64 }}
+        run: |
+          set -e
+          SIGN_ARGS=""
+          if [ -n "${TEST_KEYSTORE_B64:-}" ]; then
+            echo "$TEST_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/test.jks"
+            SIGN_ARGS="-PqaStoreFile=$RUNNER_TEMP/test.jks -PqaStorePassword=${{ secrets.TEST_KEYSTORE_PASS }} -PqaKeyAlias=${{ secrets.TEST_KEY_ALIAS }} -PqaKeyPassword=${{ secrets.TEST_KEY_PASS }}"
+          fi
+          cd app
+          chmod +x gradlew
+          ./gradlew --no-daemon --console=plain :app:assembleArm64Qa -PusePrebuiltBridge $SIGN_ARGS
+
+      - name: Package and verify contents
+        run: |
+          cd app/app/build/outputs/apk/arm64/qa
+          APK=$(ls *.apk | head -1)
+          cp "$APK" "$GITHUB_WORKSPACE/MobileCAD-0.5.18-test-arm64-i18n.apk"
+          cd "$GITHUB_WORKSPACE"
+          sha256sum MobileCAD-0.5.18-test-arm64-i18n.apk > SHA256SUMS-test
+          unzip -l MobileCAD-0.5.18-test-arm64-i18n.apk | grep -q "freecad-runtime/lib/libFreeCADApp.so"
+          unzip -l MobileCAD-0.5.18-test-arm64-i18n.apk | grep -q "device-checks/device_check.py"
+          ls -lh MobileCAD-0.5.18-test-arm64-i18n.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MobileCAD-test-apk
+          path: |
+            MobileCAD-0.5.18-test-arm64-i18n.apk
+            SHA256SUMS-test
+
+      - name: Publish pre-release
+        if: startsWith(github.ref, 'refs/tags/test-')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          files: |
+            MobileCAD-0.5.18-test-arm64-i18n.apk
+            SHA256SUMS-test
